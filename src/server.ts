@@ -5,12 +5,15 @@ import cors from "cors";
 import bcrypt from "bcrypt";
 import { url } from "inspector";
 import jwt from "jsonwebtoken";
-import { authenticateToken } from "./middleware/auth";
+import crypto from "crypto";
+import { authenticateToken, authApi } from "./middleware/auth";
+import { Console } from "console";
 dotenv.config();
 const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(cors());authenticateToken
+app.use(cors());
+authenticateToken;
 
 const salt = 5;
 const JWT_SECRET: any = process.env.JWT_SECRET;
@@ -58,7 +61,6 @@ app.post("/login", async (req, res) => {
       return res.send("Wrong username or password");
     }
 
-    
     const user = result[0];
     const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET);
 
@@ -72,7 +74,6 @@ app.post("/login", async (req, res) => {
     return res.status(500).json({ message: "Server error during login" });
   }
 });
-
 
 app.get("/profile", authenticateToken, async (req: any, res) => {
   try {
@@ -94,6 +95,29 @@ app.get("/profile", authenticateToken, async (req: any, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 });
+
+app.post("/api_key", authenticateToken, async (req: any, res) => {
+  try {
+    const random = crypto.randomBytes(32).toString("hex");
+    const hash = await bcrypt.hash(random, salt);
+    const user = req.user;
+    console.log(user)
+    const [result] = await pool.query(
+      "INSERT INTO api_keys (user_id, key_hash) VALUES(?,?)",
+      [user.userId, hash]
+    );
+
+    return res.json({Api_key : random});
+  } catch (error) {
+    console.log(error)
+    return res.status(400).send(error);
+  }
+});
+
+app.get('/data', authApi, (req:any, res)=>{
+  const user = req.user;
+  return res.send('Welcome ' + user.email);
+})
 
 app.listen("3000", () => {
   console.log("The Server is running on port 3000");
