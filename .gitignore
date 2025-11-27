@@ -1,0 +1,7 @@
+/build
+/dist
+/.next
+/out
+# Environment and secrets
+.env
+/node_modules
