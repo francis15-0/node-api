@@ -6,6 +6,7 @@ import bcrypt from "bcrypt";
 import { url } from "inspector";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import sgmail from "@sendgrid/mail";
 import { authenticateToken, authApi } from "./middleware/auth";
 import { Console } from "console";
 dotenv.config();
@@ -13,12 +14,30 @@ const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cors());
-authenticateToken;
 
+const msg = {
+  to: "nnadiekwemakuo.11@gmail.com", // Change to your recipient
+  from: "noreply@kyronix.dev", // Change to your verified sender
+  subject: "Hey Francis – quick test",
+  text: "Hi Francis, just testing my SendGrid setup. Let me know if this reaches your inbox.",
+  html: "<p>Hi Francis,</p><p>Just testing my SendGrid setup. Let me know if it gets through.</p>",
+};
+
+const api_key: any = process.env.API_KEY;
+
+sgmail.setApiKey(api_key);
 const salt = 5;
 const JWT_SECRET: any = process.env.JWT_SECRET;
-app.get("/", (req, res) => {
+app.post("/", (req, res) => {
   res.json({ Message: "Running" });
+  sgmail
+    .send(msg)
+    .then(() => {
+      console.log("Email sent");
+    })
+    .catch((error) => {
+      console.error(error);
+    });
 });
 
 app.post("/register", async (req, res) => {
@@ -101,23 +120,31 @@ app.post("/api_key", authenticateToken, async (req: any, res) => {
     const random = crypto.randomBytes(32).toString("hex");
     const hash = await bcrypt.hash(random, salt);
     const user = req.user;
-    console.log(user)
+    console.log(user);
     const [result] = await pool.query(
       "INSERT INTO api_keys (user_id, key_hash) VALUES(?,?)",
       [user.userId, hash]
     );
 
-    return res.json({Api_key : random});
+    return res.json({ Api_key: random });
   } catch (error) {
-    console.log(error)
+    console.log(error);
     return res.status(400).send(error);
   }
 });
 
-app.get('/data', authApi, (req:any, res)=>{
+app.get("/data", authApi, (req: any, res) => {
   const user = req.user;
-  return res.send('Welcome ' + user.email);
-})
+  const msg = {
+    to: user.email, // Change to your recipient
+    from: "noreply@kyronix.dev", // Change to your verified sender
+    subject: `Loggin attempt`,
+    text: "Hi Francis, just testing my SendGrid setup. Let me know if this reaches your inbox.",
+    html: "<p>Hi Francis,</p><p>Just testing my SendGrid setup. Let me know if it gets through.</p>",
+  };
+  sgmail.send(msg).then(()=>{console.log("Email sent")}).catch((err)=>{console.log(err)});
+  return res.send("Welcome " + user.email);
+});
 
 app.listen("3000", () => {
   console.log("The Server is running on port 3000");
