@@ -7,6 +7,7 @@ import { url } from "inspector";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import sgmail from "@sendgrid/mail";
+import si from "systeminformation";
 import { authenticateToken, authApi } from "./middleware/auth";
 import { Console } from "console";
 dotenv.config();
@@ -144,6 +145,40 @@ app.get("/data", authApi, (req: any, res) => {
   };
   sgmail.send(msg).then(()=>{console.log("Email sent")}).catch((err)=>{console.log(err)});
   return res.send("Welcome " + user.email);
+
+});
+
+app.get("/api/stats", async (req, res) => {
+  try {
+    const [cpu, mem, disk, osInfo, time] = await Promise.all([
+      si.currentLoad(),
+      si.mem(),
+      si.fsSize(),
+      si.osInfo(),
+      si.time(),
+    ]);
+
+    res.json({
+      cpu: {
+        load: cpu.currentLoad, // %
+      },
+      memory: {
+        total: mem.total,
+        used: mem.active,
+        free: mem.available,
+      },
+      disk,
+      os: {
+        distro: osInfo.distro,
+        release: osInfo.release,
+        hostname: osInfo.hostname,
+      },
+      time,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch stats" });
+  }
 });
 
 app.listen("3000", '0.0.0.0', () => {
